@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  name      String
+  roleId    String
+  role      Role      @relation(fields: [roleId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+model Role {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  permissions Permission[]
+  users       User[]
+}
+
+model Permission {
+  id    String @id @default(uuid())
+  name  String @unique
+  roles Role[]
+}
+
+model Category {
+  id            String        @id @default(uuid())
+  name          String
+  subCategories SubCategory[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model SubCategory {
+  id         String   @id @default(uuid())
+  name       String
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model MaterialGroup {
+  id           String        @id @default(uuid())
+  name         String
+  rawMaterials RawMaterial[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Supplier {
+  id           String              @id @default(uuid())
+  name         String
+  contactEmail String
+  rawMaterials RawMaterial[]
+  quotations   SupplierQuotation[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model Warehouse {
+  id           String        @id @default(uuid())
+  name         String
+  location     String
+  rawMaterials RawMaterial[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model RawMaterial {
+  id          String        @id @default(uuid())
+  name        String
+  groupId     String
+  group       MaterialGroup @relation(fields: [groupId], references: [id])
+  supplierId  String
+  supplier    Supplier      @relation(fields: [supplierId], references: [id])
+  warehouseId String
+  warehouse   Warehouse     @relation(fields: [warehouseId], references: [id])
+  stockLevel  Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Product {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InventoryTransaction {
+  id         String   @id @default(uuid())
+  type       String // e.g., 'IN', 'OUT', 'TRANSFER'
+  materialId String
+  quantity   Int
+  createdAt  DateTime @default(now())
+}
+
+model StockAdjustment {
+  id         String   @id @default(uuid())
+  materialId String
+  quantity   Int
+  reason     String
+  createdAt  DateTime @default(now())
+}
+
+model RFQ {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+}
+
+model SupplierQuotation {
+  id         String   @id @default(uuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+model PurchaseOrder {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+}
+
+model GateEntry {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  message   String
+  userId    String
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String
+  userId    String
+  createdAt DateTime @default(now())
+}

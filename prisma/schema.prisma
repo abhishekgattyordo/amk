@@ -1,0 +1,590 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String
+  name          String
+  roleId        String?        @map("role_id")
+  role          Role?          @relation(fields: [roleId], references: [id])
+  department    String?
+  avatar        String?
+  address       String?
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  deletedAt     DateTime?      @map("deleted_at")
+  isDeleted      Boolean                @default(false) @map("is_deleted")
+  deletedBy      String?                @map("deleted_by")
+
+  @@map("users")
+}
+
+model Role {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  permissions Permission[]
+  users       User[]
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@map("roles")
+}
+
+model Permission {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  roles     Role[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("permissions")
+}
+
+model Category {
+  id            String        @id @default(uuid())
+  code          String?       @unique
+  name          String
+  type          String?       // 'Raw Material' | 'Finished Product' | 'Material Group'
+  description   String?
+  itemsCount    Int           @default(0) @map("items_count")
+  status        String        @default("Active")
+  subCategories SubCategory[]
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  deletedAt     DateTime?     @map("deleted_at")
+  isDeleted      Boolean                @default(false) @map("is_deleted")
+  deletedBy      String?                @map("deleted_by")
+
+  @@map("categories")
+}
+
+model SubCategory {
+  id           String        @id @default(uuid())
+  code         String?       @unique
+  name         String
+  categoryId   String        @map("category_id")
+  category     Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  description  String?
+  status       String        @default("Active")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at")
+  isDeleted      Boolean                @default(false) @map("is_deleted")
+  deletedBy      String?                @map("deleted_by")
+
+  @@map("subcategories")
+}
+
+model MaterialGroup {
+  id           String        @id @default(uuid())
+  code         String?       @unique
+  name         String
+  description  String?
+  rawMaterials RawMaterial[]
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at")
+  isDeleted      Boolean                @default(false) @map("is_deleted")
+  deletedBy      String?                @map("deleted_by")
+
+  @@map("material_groups")
+}
+
+model Supplier {
+  id             String              @id @default(uuid())
+  supplierName   String              @map("supplier_name")
+  millName       String              @map("mill_name")
+  category       String
+  rawMaterials   RawMaterial[]
+  quotations     SupplierQuotation[]
+  purchaseOrders PurchaseOrder[]
+  reelInwards    ReelInward[]
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  deletedAt      DateTime?           @map("deleted_at")
+  isDeleted      Boolean                @default(false) @map("is_deleted")
+  deletedBy      String?                @map("deleted_by")
+
+  @@unique([supplierName, millName, category])
+  @@map("suppliers")
+}
+
+model Warehouse {
+  id                        String                 @id @default(uuid())
+  code                      String?                @unique
+  name                      String
+  location                  String
+  manager                   String?
+  capacitySqFt              Float                  @default(0) @map("capacity_sq_ft")
+  currentUtilizationPercent Float                  @default(0) @map("current_utilization_percent")
+  totalBins                 Int                    @default(0) @map("total_bins")
+  activeItemsCount          Int                    @default(0) @map("active_items_count")
+  status                    String                 @default("Operational")
+  rawMaterials              RawMaterial[]
+  products                  Product[]
+  stockLevels               StockLevel[]
+  transactions              InventoryTransaction[] @relation("WarehouseTransactions")
+  destTransactions          InventoryTransaction[] @relation("DestinationWarehouseTransactions")
+  gateEntries               GateEntry[]
+  createdAt                 DateTime               @default(now()) @map("created_at")
+  updatedAt                 DateTime               @updatedAt @map("updated_at")
+  deletedAt                 DateTime?              @map("deleted_at")
+  isDeleted      Boolean                @default(false) @map("is_deleted")
+  deletedBy      String?                @map("deleted_by")
+  bins                      BinLocation[]
+
+  @@map("warehouses")
+}
+
+model BinLocation {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  name        String
+  warehouseId String    @map("warehouse_id")
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  type        String    @default("Storage")
+  status      String    @default("Active")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  stockLevels StockLevel[]
+
+  @@map("bin_locations")
+}
+
+model RawMaterial {
+  id             String                 @id @default(uuid())
+  code           String?                @unique
+  name           String
+  category       String?
+  subCategory    String?                @map("subcategory")
+  groupId        String?                @map("group_id")
+  group          MaterialGroup?         @relation(fields: [groupId], references: [id])
+  supplierId     String?                @map("supplier_id")
+  supplier       Supplier?              @relation(fields: [supplierId], references: [id])
+  warehouseId    String?                @map("warehouse_id")
+  warehouse      Warehouse?             @relation(fields: [warehouseId], references: [id])
+  grade          String?
+  gsm            Float?
+  thickness      Float?
+  uom            String                 @default("Kg")
+  hsnCode        String?                @map("hsn_code")
+  currentStock   Float                  @default(0) @map("current_stock")
+  minStock       Float                  @default(0) @map("min_stock")
+  maxStock       Float                  @default(0) @map("max_stock")
+  reorderLevel   Float                  @default(0) @map("reorder_level")
+  purchasePrice  Float                  @default(0) @map("purchase_price")
+  status         String                 @default("Active")
+  description    String?
+  documentsCount Int                    @default(0) @map("documents_count")
+  stockLevels    StockLevel[]
+  transactions   InventoryTransaction[]
+  gateEntryItems GateEntryItem[]
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  deletedAt      DateTime?              @map("deleted_at")
+  isDeleted      Boolean                @default(false) @map("is_deleted")
+  deletedBy      String?                @map("deleted_by")
+
+  @@map("raw_materials")
+}
+
+model Product {
+  id             String                 @id @default(uuid())
+  code           String?                @unique
+  name           String
+  category       String?
+  subCategory    String?                @map("subcategory")
+  boxType        String?                @map("box_type")
+  dimensions     String?
+  gsm            Float?
+  unit           String                 @default("Pcs")
+  hsnCode        String?                @map("hsn_code")
+  costPrice      Float                  @default(0) @map("cost_price")
+  sellingPrice   Float                  @default(0) @map("selling_price")
+  warehouseId    String?                @map("warehouse_id")
+  warehouse      Warehouse?             @relation(fields: [warehouseId], references: [id])
+  availableStock Float                  @default(0) @map("available_stock")
+  status         String                 @default("Active")
+  imageUrl       String?                @map("image_url")
+  specifications String?
+  stockLevels    StockLevel[]
+  transactions   InventoryTransaction[]
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+  deletedAt      DateTime?              @map("deleted_at")
+  isDeleted      Boolean                @default(false) @map("is_deleted")
+  deletedBy      String?                @map("deleted_by")
+
+  @@map("products")
+}
+
+model StockLevel {
+  id            String       @id @default(uuid())
+  itemType      String       @map("item_type") // 'RAW_MATERIAL' | 'PRODUCT'
+  rawMaterialId String?      @map("raw_material_id")
+  rawMaterial   RawMaterial? @relation(fields: [rawMaterialId], references: [id])
+  productId     String?      @map("product_id")
+  product       Product?     @relation(fields: [productId], references: [id])
+  warehouseId   String       @map("warehouse_id")
+  warehouse     Warehouse    @relation(fields: [warehouseId], references: [id])
+  binId         String?      @map("bin_id")
+  bin           BinLocation? @relation(fields: [binId], references: [id])
+  currentStock  Float        @default(0) @map("current_stock")
+  minStock      Float        @default(0) @map("min_stock")
+  maxStock      Float        @default(0) @map("max_stock")
+  reorderLevel  Float        @default(0) @map("reorder_level")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  @@unique([itemType, rawMaterialId, productId, warehouseId, binId], name: "unique_item_warehouse_bin")
+  @@map("stock_levels")
+}
+
+model InventoryTransaction {
+  id                     String       @id @default(uuid())
+  transactionNumber      String       @unique @default(uuid()) @map("transaction_number")
+  itemCode               String?      @map("item_code")
+  itemName               String?      @map("item_name")
+  itemType               String       @map("item_type") // 'Raw Material' | 'Finished Product'
+  rawMaterialId          String?      @map("raw_material_id")
+  rawMaterial            RawMaterial? @relation(fields: [rawMaterialId], references: [id])
+  productId              String?      @map("product_id")
+  product                Product?     @relation(fields: [productId], references: [id])
+  warehouseId            String?      @map("warehouse_id")
+  warehouse              Warehouse?   @relation("WarehouseTransactions", fields: [warehouseId], references: [id])
+  destinationWarehouseId String?      @map("destination_warehouse_id")
+  destinationWarehouse   Warehouse?   @relation("DestinationWarehouseTransactions", fields: [destinationWarehouseId], references: [id])
+  quantity               Float
+  previousStock          Float        @default(0) @map("previous_stock")
+  currentStock           Float        @default(0) @map("current_stock")
+  transactionType        String       @map("transaction_type") // 'Stock In' | 'Stock Out' | 'Warehouse Transfer' | 'Stock Adjustment' | etc.
+  user                   String?      @map("user_name")
+  date                   String?
+  time                   String?
+  reason                 String?
+  remarks                String?
+  referenceNumber        String?      @map("reference_number")
+  referenceType          String?      @map("reference_type")
+  createdAt              DateTime     @default(now()) @map("created_at")
+  updatedAt              DateTime     @updatedAt @map("updated_at")
+
+  @@map("inventory_transactions")
+}
+
+model StockAdjustment {
+  id               String   @id @default(uuid())
+  adjustmentNumber String   @unique @default(uuid()) @map("adjustment_number")
+  itemType         String   @map("item_type") // 'RAW_MATERIAL' | 'PRODUCT'
+  itemId           String   @map("item_id")
+  quantity         Float
+  reason           String
+  adjustedBy       String?  @map("adjusted_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("stock_adjustments")
+}
+
+model RFQ {
+  id                 String              @id @default(uuid())
+  rfqNumber          String              @unique @map("rfq_number")
+  rfqDate            String              @map("rfq_date")
+  deliveryDate       String              @map("delivery_date")
+  department         String              @default("Procurement")
+  priority           String              @default("Medium")
+  status             String              @default("Draft")
+  description        String?
+  remarks            String?
+  sentDate           String?             @map("sent_date")
+  sentBy             String?             @map("sent_by")
+  responseDeadline   String?             @map("response_deadline")
+  materials          RFQMaterial[]
+  suppliers          RFQSupplier[]
+  quotations         SupplierQuotation[]
+  purchaseOrders     PurchaseOrder[]
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  deletedAt          DateTime?           @map("deleted_at")
+  isDeleted      Boolean                @default(false) @map("is_deleted")
+  deletedBy      String?                @map("deleted_by")
+
+  @@map("rfqs")
+}
+
+model RFQMaterial {
+  id            String   @id @default(uuid())
+  rfqId         String   @map("rfq_id")
+  rfq           RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  materialCode  String   @map("material_code")
+  name          String   @map("material_name")
+  unit          String
+  quantity      Float
+  expectedPrice Float?   @map("expected_price")
+  requiredDate  String   @map("required_date")
+  description   String?
+  remarks       String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("rfq_items")
+}
+
+model RFQSupplier {
+  id            String   @id @default(uuid())
+  rfqId         String   @map("rfq_id")
+  rfq           RFQ      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplierId    String   @map("supplier_id")
+  supplierName  String   @map("supplier_name")
+  contactPerson String?  @map("contact_person")
+  email         String?
+  phone         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([rfqId, supplierId], map: "unique_rfq_supplier")
+  @@map("rfq_suppliers")
+}
+
+model SupplierQuotation {
+  id             String              @id @default(uuid())
+  quoteNumber    String              @unique @map("quote_number")
+  rfqId          String?             @map("rfq_id")
+  rfq            RFQ?                @relation(fields: [rfqId], references: [id])
+  supplierId     String              @map("supplier_id")
+  supplier       Supplier            @relation(fields: [supplierId], references: [id])
+  quoteDate      String              @map("quote_date")
+  validityDate   String?             @map("validity_date")
+  status         String              @default("Submitted")
+  totalAmount    Float               @default(0) @map("total_amount")
+  remarks        String?
+  items          SupplierQuoteItem[]
+  purchaseOrders PurchaseOrder[]
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  deletedAt      DateTime?           @map("deleted_at")
+  isDeleted      Boolean                @default(false) @map("is_deleted")
+  deletedBy      String?                @map("deleted_by")
+
+  @@map("supplier_quotes")
+}
+
+model SupplierQuoteItem {
+  id           String            @id @default(uuid())
+  quotationId  String            @map("quote_id")
+  quotation    SupplierQuotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  materialCode String            @map("material_code")
+  materialName String?           @map("material_name")
+  quantity     Float
+  unitPrice    Float             @map("unit_price")
+  discount     Float             @default(0)
+  tax          Float             @default(0)
+  totalPrice   Float             @map("total_price")
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  @@map("supplier_quote_items")
+}
+
+model PurchaseOrder {
+  id             String              @id @default(uuid())
+  poNumber       String              @unique @map("po_number")
+  rfqNumber      String?             @map("rfq_number")
+  rfqId          String?             @map("rfq_id")
+  rfq            RFQ?                @relation(fields: [rfqId], references: [id])
+  quoteId        String?             @map("quote_id")
+  quote          SupplierQuotation?  @relation(fields: [quoteId], references: [id])
+  supplierId     String              @map("supplier_id")
+  supplier       Supplier            @relation(fields: [supplierId], references: [id])
+  date           String              @map("po_date")
+  deliveryDate   String              @map("delivery_date")
+  status         String              @default("Draft")
+  remarks        String?
+  totalAmount    Float               @default(0) @map("total_amount")
+  items          PurchaseOrderItem[]
+  gateEntries    GateEntry[]
+  reelInwards    ReelInward[]
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+  deletedAt      DateTime?           @map("deleted_at")
+  isDeleted      Boolean                @default(false) @map("is_deleted")
+  deletedBy      String?                @map("deleted_by")
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id               String        @id @default(uuid())
+  poId             String        @map("po_id")
+  purchaseOrder    PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  materialCode     String        @map("material_code")
+  materialName     String        @map("material_name")
+  quantityOrdered  Float         @map("quantity_ordered")
+  quantityReceived Float         @default(0) @map("quantity_received")
+  unitPrice        Float         @map("unit_price")
+  total            Float         @map("total_amount")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  @@map("purchase_order_items")
+}
+
+model GateEntry {
+  id              String          @id @default(uuid())
+  gateEntryNumber String          @unique @map("gate_entry_number")
+  poId            String?         @map("po_id")
+  purchaseOrder   PurchaseOrder?  @relation(fields: [poId], references: [id])
+  poNumber        String?         @map("po_number")
+  warehouseId     String?         @map("warehouse_id")
+  warehouse       Warehouse?      @relation(fields: [warehouseId], references: [id])
+  vehicleNumber   String?         @map("vehicle_number")
+  driverName      String?         @map("driver_name")
+  challanNumber   String?         @map("challan_number")
+  challanDate     String?         @map("challan_date")
+  entryTime       String?         @map("entry_time")
+  status          String          @default("Entered")
+  remarks         String?
+  items           GateEntryItem[]
+  qualityChecks   QualityCheck[]
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@map("gate_entries")
+}
+
+model GateEntryItem {
+  id               String       @id @default(uuid())
+  gateEntryId      String       @map("gate_entry_id")
+  gateEntry        GateEntry    @relation(fields: [gateEntryId], references: [id], onDelete: Cascade)
+  materialId       String?      @map("material_id")
+  material         RawMaterial? @relation(fields: [materialId], references: [id])
+  materialCode     String       @map("material_code")
+  materialName     String       @map("material_name")
+  quantityReceived Float     @map("quantity_received")
+  unit             String    @default("Kg")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@map("gate_entry_items")
+}
+
+model ReelInward {
+  id            String           @id @default(uuid())
+  inwardNumber  String?          @unique @map("inward_number")
+  reelNumber    String?          @map("reel_number")
+  challanNumber String?          @map("challan_number")
+  invoiceNumber String?          @map("invoice_number")
+  poId          String?          @map("po_id")
+  purchaseOrder PurchaseOrder?   @relation(fields: [poId], references: [id])
+  poNumber      String?          @map("po_number")
+  supplierId    String?          @map("supplier_id")
+  supplier      Supplier?        @relation(fields: [supplierId], references: [id])
+  supplierName  String?          @map("supplier_name")
+  millName      String?          @map("mill_name")
+  receivedDate  String?          @map("received_date")
+  vehicleNumber String?          @map("vehicle_number")
+  description   String?
+  gsm           Float?
+  bf            Float?
+  width         Float?
+  weight        Float?           @default(0)
+  qcStatus      String           @default("Pending") @map("qc_status")
+  status        String           @default("PENDING_QC")
+  remarks       String?
+  items         ReelInwardItem[]
+  qualityChecks QualityCheck[]
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  deletedAt     DateTime?        @map("deleted_at")
+  isDeleted     Boolean          @default(false) @map("is_deleted")
+  deletedBy     String?          @map("deleted_by")
+
+  @@map("reel_inwards")
+}
+
+model ReelInwardItem {
+  id           String     @id @default(uuid())
+  reelInwardId String     @map("reel_inward_id")
+  reelInward   ReelInward @relation(fields: [reelInwardId], references: [id], onDelete: Cascade)
+  reelNumber   String     @map("reel_number")
+  material     String?    @default("Paper Reel")
+  description  String?
+  hsnCode      String?    @map("hsn_code")
+  bf           Float?
+  gsm          Float?
+  length       Float?
+  breadth      Float?
+  size         String?
+  weight       Float      @default(0)
+  uom          String     @default("Kg")
+  lotNumber    String?    @map("lot_number")
+  qcStatus     String     @default("Pending") @map("qc_status")
+  status       String     @default("Pending QC")
+  remarks      String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@map("reel_inward_items")
+}
+
+model QualityCheck {
+  id            String     @id @default(uuid())
+  qcNumber      String     @unique @map("qc_number")
+  referenceType String     @map("reference_type")
+  gateEntryId   String?    @map("gate_entry_id")
+  gateEntry     GateEntry? @relation(fields: [gateEntryId], references: [id])
+  reelInwardId  String?    @map("reel_inward_id")
+  reelInward    ReelInward?@relation(fields: [reelInwardId], references: [id])
+  inspector     String?
+  status        String     @default("Passed")
+  parameters    String?
+  remarks       String?
+  testedAt      DateTime   @default(now()) @map("tested_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  @@map("quality_checks")
+}
+
+model Notification {
+  id             String   @id @default(uuid())
+  title          String
+  message        String
+  time           String?  @map("time_str")
+  type           String   @default("info")
+  priority       String   @default("Info")
+  read           Boolean  @default(false)
+  module         String?
+  recipientRole  String?  @map("recipient_role")
+  emailSent      Boolean  @default(false) @map("email_sent")
+  emailRecipient String?  @map("email_recipient")
+  userId         String?  @map("user_id")
+  user           User?    @relation(fields: [userId], references: [id])
+  entityId       String?  @map("entity_id")
+  entityType     String?  @map("entity_type")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  module    String?
+  entity    String
+  entityId  String   @map("entity_id")
+  fieldName String?  @map("field_name")
+  oldValue  String?  @map("old_value")
+  newValue  String?  @map("new_value")
+  user      String?  @map("user_name")
+  userId    String?  @map("user_id")
+  authUser  User?    @relation(fields: [userId], references: [id])
+  details   String?
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}

@@ -1,0 +1,6 @@
+{
+  "name": "AMK ERP",
+  "description": "Enterprise Manufacturing ERP for Paper Carton and Corrugated Box Manufacturing",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
